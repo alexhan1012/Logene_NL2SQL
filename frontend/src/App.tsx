@@ -87,7 +87,8 @@ const App: React.FC = () => {
       loadHistory();
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : '未知错误';
-      message.error('请求失败: ' + errMsg);
+      console.error('SQL生成失败:', e);
+      message.error('SQL生成失败: ' + errMsg);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: '抱歉，处理您的请求时出现错误，请检查后端服务是否正常运行。'
@@ -98,8 +99,8 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout style={{ height: '100vh' }}>
-      <Sider width={250} style={{ background: '#001529', overflow: 'auto' }}>
+    <Layout style={{ height: '100vh', overflow: 'hidden' }}>
+      <Sider width={250} style={{ background: '#001529', overflow: 'auto', height: '100vh' }}>
         <Sidebar
           sessions={sessions}
           currentSessionId={currentSessionId}
@@ -108,12 +109,12 @@ const App: React.FC = () => {
           onDeleteSession={handleDeleteSession}
         />
       </Sider>
-      <Content style={{ display: 'flex', flexDirection: 'column' }}>
+      <Content style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflow: 'auto', padding: '16px', background: '#f5f5f5' }}>
           {messages.length === 0 ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#999' }}>
               <div style={{ textAlign: 'center' }}>
-                <h2>PathQC NL2SQL</h2>
+                <h2 style={{ color: '#333', marginBottom: '8px' }}>PathQC NL2SQL</h2>
                 <p>请输入自然语言问题，我将为您生成SQL查询</p>
               </div>
             </div>
@@ -127,7 +128,7 @@ const App: React.FC = () => {
           )}
           <div ref={messagesEndRef} />
         </div>
-        <div style={{ padding: '12px 16px', background: '#fff', borderTop: '1px solid #e8e8e8', display: 'flex', gap: '8px' }}>
+        <div style={{ padding: '12px 16px', background: '#fff', borderTop: '1px solid #e8e8e8', display: 'flex', gap: '8px', flexShrink: 0 }}>
           <Input.TextArea
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
@@ -142,7 +143,7 @@ const App: React.FC = () => {
           </Button>
         </div>
       </Content>
-      <Sider width={380} style={{ background: '#fff', borderLeft: '1px solid #e8e8e8', overflow: 'auto' }}>
+      <Sider width={380} style={{ background: '#fff', borderLeft: '1px solid #e8e8e8', overflow: 'auto', height: '100vh' }}>
         <Tabs defaultActiveKey="schema" style={{ height: '100%' }} items={[
           {
             key: 'relation',

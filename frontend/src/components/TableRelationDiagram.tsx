@@ -70,6 +70,7 @@ const TableRelationDiagram: React.FC<Props> = ({ sqlData }) => {
 
     setNodes(newNodes);
     setEdges(newEdges);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sqlData]);
 
   if (!sqlData?.tables_used?.length) {

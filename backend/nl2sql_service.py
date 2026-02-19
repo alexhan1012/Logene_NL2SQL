@@ -9,9 +9,17 @@ def _extract_json(content: str) -> str:
     """Strip markdown code fences from LLM response to get raw JSON."""
     content = content.strip()
     if "```" in content:
-        content = content.split("```")[1]
-        if content.startswith("json"):
-            content = content[4:]
+        parts = content.split("```")
+        if len(parts) >= 2:
+            inner = parts[1]
+            if inner.startswith("json"):
+                inner = inner[4:]
+            return inner.strip()
+    # Try to find JSON object directly
+    start = content.find("{")
+    end = content.rfind("}")
+    if start != -1 and end != -1:
+        return content[start:end + 1]
     return content
 
 
