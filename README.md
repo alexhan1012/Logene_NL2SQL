@@ -54,9 +54,9 @@ cd frontend && npm install
 cp backend/.env.example backend/.env
 
 # 编辑 backend/.env，填入你的 API 密钥：
-# ARK_API_KEY=你的_API_KEY
-# ARK_MODEL=deepseek-v3-2-251201
-# ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+# LLM_PROVIDER=ark 或 siliconflow（默认 ark）
+# ARK_API_KEY=你的_火山引擎_API_KEY
+# SILICONFLOW_API_KEY=你的_硅基流动_API_KEY
 ```
 
 ### 4. 启动服务
@@ -195,10 +195,18 @@ Logene_NL2SQL/
 ### Backend (.env)
 
 ```env
+# LLM 服务商选择（ark / siliconflow）
+LLM_PROVIDER=ark
+
 # Volcano Engine（火山引擎）API 配置
 ARK_API_KEY=your_api_key_here
 ARK_MODEL=deepseek-v3-2-251201
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+
+# SiliconFlow（硅基流动）API 配置
+SILICONFLOW_API_KEY=
+SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V3
+SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
 ```
 
 ### Frontend

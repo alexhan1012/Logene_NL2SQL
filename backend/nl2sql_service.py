@@ -25,23 +25,46 @@ def _extract_json(content: str) -> str:
 
 class NL2SQLService:
     def __init__(self):
-        api_key = os.getenv("ARK_API_KEY", "").strip()
-        
+        provider = os.getenv("LLM_PROVIDER", "ark").strip().lower()
+        provider_config = {
+            "ark": {
+                "api_key": os.getenv("ARK_API_KEY", "").strip(),
+                "base_url": os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
+                "model": os.getenv("ARK_MODEL", "doubao-pro-32k-241215"),
+                "error_help": (
+                    "1. 访问火山引擎控制台 (https://console.volcengine.com/)\n"
+                    "2. 获取你的 API 密钥\n"
+                    "3. 编辑 backend/.env 文件\n"
+                    "4. 设置 ARK_API_KEY=你的实际_API_密钥\n"
+                    "5. 重启后端服务"
+                ),
+            },
+            "siliconflow": {
+                "api_key": os.getenv("SILICONFLOW_API_KEY", "").strip(),
+                "base_url": os.getenv("SILICONFLOW_BASE_URL", "https://api.siliconflow.cn/v1"),
+                "model": os.getenv("SILICONFLOW_MODEL", "deepseek-ai/DeepSeek-V3"),
+                "error_help": (
+                    "1. 访问硅基流动控制台 (https://cloud.siliconflow.cn/)\n"
+                    "2. 获取你的 API 密钥\n"
+                    "3. 编辑 backend/.env 文件\n"
+                    "4. 设置 SILICONFLOW_API_KEY=你的实际_API_密钥\n"
+                    "5. 重启后端服务"
+                ),
+            },
+        }
+        if provider not in provider_config:
+            supported_providers = " 或 ".join(sorted(provider_config.keys()))
+            raise ValueError(f"❌ 不支持的 LLM_PROVIDER，请使用 {supported_providers}")
+        config = provider_config[provider]
+        api_key = config["api_key"]
+
         # 检查 API 密钥
         if not api_key or api_key == "your_api_key_here":
-            raise ValueError(
-                "❌ 缺少有效的 API 密钥配置\n\n"
-                "请完成以下步骤：\n"
-                "1. 访问火山引擎控制台 (https://console.volcengine.com/)\n"
-                "2. 获取你的 API 密钥\n"
-                "3. 编辑 backend/.env 文件\n"
-                "4. 设置 ARK_API_KEY=你的实际_API_密钥\n"
-                "5. 重启后端服务"
-            )
-        
+            raise ValueError(f"❌ 缺少有效的 API 密钥配置\n\n请完成以下步骤：\n{config['error_help']}")
+
         self.llm = ChatOpenAI(
-            base_url=os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
-            model=os.getenv("ARK_MODEL", "doubao-pro-32k-241215"),
+            base_url=config["base_url"],
+            model=config["model"],
             api_key=api_key,
         )
 
