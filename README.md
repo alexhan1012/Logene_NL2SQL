@@ -54,7 +54,7 @@ cd frontend && npm install
 cp backend/.env.example backend/.env
 
 # 编辑 backend/.env，填入你的 API 密钥：
-# LLM_PROVIDER=ark 或 siliconflow
+# LLM_PROVIDER=ark 或 siliconflow（默认 ark）
 # ARK_API_KEY=你的_火山引擎_API_KEY
 # SILICONFLOW_API_KEY=你的_硅基流动_API_KEY
 ```

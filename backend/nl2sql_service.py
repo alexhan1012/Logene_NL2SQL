@@ -25,9 +25,7 @@ def _extract_json(content: str) -> str:
 
 class NL2SQLService:
     def __init__(self):
-        provider = os.getenv("LLM_PROVIDER", "").strip().lower() or (
-            "siliconflow" if os.getenv("SILICONFLOW_API_KEY", "").strip() else "ark"
-        )
+        provider = os.getenv("LLM_PROVIDER", "ark").strip().lower()
         provider_config = {
             "ark": {
                 "api_key": os.getenv("ARK_API_KEY", "").strip(),
@@ -55,7 +53,8 @@ class NL2SQLService:
             },
         }
         if provider not in provider_config:
-            raise ValueError("❌ 不支持的 LLM_PROVIDER，请使用 ark 或 siliconflow")
+            supported_providers = " 或 ".join(sorted(provider_config.keys()))
+            raise ValueError(f"❌ 不支持的 LLM_PROVIDER，请使用 {supported_providers}")
         config = provider_config[provider]
         api_key = config["api_key"]
 
