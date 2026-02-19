@@ -6,7 +6,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from .schemas import TABLES
 
-load_dotenv(dotenv_path=Path(__file__).resolve().with_name(".env"))
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
 
 def _extract_json(content: str) -> str:

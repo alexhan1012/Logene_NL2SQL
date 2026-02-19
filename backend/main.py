@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 import os
 from pathlib import Path
 
-load_dotenv(dotenv_path=Path(__file__).resolve().with_name(".env"))
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
 from .database import init_db, get_db, Conversation, Message
 from .nl2sql_service import NL2SQLService
