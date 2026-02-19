@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 import json
 
@@ -47,8 +47,8 @@ async def chat(request: ChatRequest):
             conv = Conversation(
                 session_id=session_id,
                 title=request.question[:50],
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
             db.add(conv)
             db.commit()
@@ -60,7 +60,7 @@ async def chat(request: ChatRequest):
             session_id=session_id,
             role="user",
             content=request.question,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         db.add(user_msg)
         db.commit()
@@ -73,11 +73,11 @@ async def chat(request: ChatRequest):
             role="assistant",
             content=assistant_content,
             sql_result=json.dumps(result),
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         db.add(assistant_msg)
 
-        conv.updated_at = datetime.utcnow()
+        conv.updated_at = datetime.now(timezone.utc)
         db.commit()
 
         return {**result, "session_id": session_id}

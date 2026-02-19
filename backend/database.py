@@ -1,7 +1,6 @@
 from sqlalchemy import create_engine, Column, String, Integer, Text, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
 
 DATABASE_URL = "sqlite:///./nl2sql.db"
 
