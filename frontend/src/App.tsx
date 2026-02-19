@@ -85,8 +85,9 @@ const App: React.FC = () => {
       setMessages(prev => [...prev, assistantMsg]);
       setLastSqlData(response);
       loadHistory();
-    } catch (e: any) {
-      message.error('请求失败: ' + (e.message || '未知错误'));
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : '未知错误';
+      message.error('请求失败: ' + errMsg);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: '抱歉，处理您的请求时出现错误，请检查后端服务是否正常运行。'

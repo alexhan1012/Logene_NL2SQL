@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 import json
+from contextlib import asynccontextmanager
 
 load_dotenv()
 
@@ -13,7 +14,14 @@ from database import init_db, get_db, Conversation, Message
 from nl2sql_service import NL2SQLService
 from schemas import TABLES
 
-app = FastAPI(title="NL2SQL API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="NL2SQL API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,11 +32,6 @@ app.add_middleware(
 )
 
 nl2sql_service = NL2SQLService()
-
-
-@app.on_event("startup")
-async def startup():
-    init_db()
 
 
 class ChatRequest(BaseModel):

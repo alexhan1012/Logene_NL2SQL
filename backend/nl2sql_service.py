@@ -5,6 +5,16 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from schemas import TABLES
 
 
+def _extract_json(content: str) -> str:
+    """Strip markdown code fences from LLM response to get raw JSON."""
+    content = content.strip()
+    if "```" in content:
+        content = content.split("```")[1]
+        if content.startswith("json"):
+            content = content[4:]
+    return content
+
+
 class NL2SQLService:
     def __init__(self):
         self.llm = ChatOpenAI(
@@ -32,12 +42,7 @@ class NL2SQLService:
         ]
 
         response = self.llm.invoke(messages)
-        content = response.content.strip()
-        if "```" in content:
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-        result = json.loads(content)
+        result = json.loads(_extract_json(response.content))
         return result.get("tables", [])
 
     def generate_sql(self, question: str, selected_tables: list, conversation_history: list = None) -> dict:
@@ -82,12 +87,7 @@ class NL2SQLService:
         ]
 
         response = self.llm.invoke(messages)
-        content = response.content.strip()
-        if "```" in content:
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-        result = json.loads(content)
+        result = json.loads(_extract_json(response.content))
         return {
             "sql": result.get("sql", ""),
             "joins": result.get("joins", []),
