@@ -8,9 +8,10 @@ from dotenv import load_dotenv
 import json
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
-import sys
+import os
+from pathlib import Path
 
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).resolve().with_name(".env"))
 
 from .database import init_db, get_db, Conversation, Message
 from .nl2sql_service import NL2SQLService
@@ -157,14 +158,17 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         
         # 检测认证错误
         if "401" in error_str or "AuthenticationError" in error_str or "Unauthorized" in error_str:
+            provider = os.getenv("LLM_PROVIDER", "ark").strip().lower()
+            api_key_name = "SILICONFLOW_API_KEY" if provider == "siliconflow" else "ARK_API_KEY"
+            provider_console = "https://cloud.siliconflow.cn/" if provider == "siliconflow" else "https://console.volcengine.com/"
             detail = (
                 "❌ API 认证失败\n\n"
                 "请检查：\n"
-                "1. backend/.env 中的 ARK_API_KEY 是否正确\n"
+                f"1. backend/.env 中的 {api_key_name} 是否正确\n"
                 "2. API 密钥是否已过期\n"
                 "3. API 密钥是否有效且有权限\n\n"
                 "获取新密钥：\n"
-                "访问 https://console.volcengine.com/ 并重新配置 API 密钥"
+                f"访问 {provider_console} 并重新配置 API 密钥"
             )
             raise HTTPException(status_code=401, detail=detail)
         

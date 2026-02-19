@@ -57,6 +57,8 @@ cp backend/.env.example backend/.env
 # LLM_PROVIDER=ark 或 siliconflow（默认 ark）
 # ARK_API_KEY=你的_火山引擎_API_KEY
 # SILICONFLOW_API_KEY=你的_硅基流动_API_KEY
+# ARK_MODEL=火山引擎模型名（示例：doubao-pro-32k-241215）
+# SILICONFLOW_MODEL=硅基流动模型名（示例：Pro/zai-org/GLM-4.7）
 ```
 
 ### 4. 启动服务
@@ -200,14 +202,24 @@ LLM_PROVIDER=ark
 
 # Volcano Engine（火山引擎）API 配置
 ARK_API_KEY=your_api_key_here
-ARK_MODEL=deepseek-v3-2-251201
+ARK_MODEL=doubao-pro-32k-241215
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 
 # SiliconFlow（硅基流动）API 配置
-SILICONFLOW_API_KEY=
-SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V3
+SILICONFLOW_API_KEY=your_api_key_here
+SILICONFLOW_MODEL=Pro/zai-org/GLM-4.7
 SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
 ```
+
+### API 配置方法（火山引擎 / 硅基流动）
+
+1. 复制配置模板：`cp backend/.env.example backend/.env`
+2. 在 `backend/.env` 中设置 `LLM_PROVIDER`：
+   - 使用火山引擎：`LLM_PROVIDER=ark`
+   - 使用硅基流动：`LLM_PROVIDER=siliconflow`
+3. 仅填写对应服务商的 API Key 与模型名，重启后端服务。
+
+硅基流动官方文档：<https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions>
 
 ### Frontend
 

@@ -1,8 +1,12 @@
 import os
 import json
+from pathlib import Path
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from .schemas import TABLES
+
+load_dotenv(dotenv_path=Path(__file__).resolve().with_name(".env"))
 
 
 def _extract_json(content: str) -> str:
