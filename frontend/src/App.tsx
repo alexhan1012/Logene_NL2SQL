@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Tabs, Spin, message } from 'antd';
+import { Layout, Tabs, Spin, message, Alert } from 'antd';
 import Sidebar from './components/Sidebar';
 import ChatMessage from './components/ChatMessage';
 import TableSchemaPanel from './components/TableSchemaPanel';
 import TableRelationDiagram from './components/TableRelationDiagram';
 import type { Message as MsgType, Session, TableSchema } from './types';
-import { sendMessage, getHistory, getSession, getTables, deleteSession } from './api';
+import { sendMessage, getHistory, getSession, getTables, deleteSession, healthCheck } from './api';
 import { Input, Button } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import './App.css';
@@ -20,11 +20,26 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [tables, setTables] = useState<Record<string, TableSchema>>({});
   const [lastSqlData, setLastSqlData] = useState<any>(null);
+  const [backendError, setBackendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // 检查后端连接
+    healthCheck()
+      .then(() => {
+        console.log('✅ Backend is connected');
+        setBackendError(null);
+      })
+      .catch((err) => {
+        console.error('❌ Backend connection failed:', err);
+        setBackendError('后端服务未响应，请确保后端服务已启动（端口 8000）');
+      });
+
     loadHistory();
-    getTables().then(setTables).catch(console.error);
+    getTables().then(setTables).catch((err) => {
+      console.error('Failed to load tables:', err);
+      setBackendError('无法加载表结构，请检查后端服务');
+    });
   }, []);
 
   useEffect(() => {
@@ -85,13 +100,34 @@ const App: React.FC = () => {
       setMessages(prev => [...prev, assistantMsg]);
       setLastSqlData(response);
       loadHistory();
+      setBackendError(null);
     } catch (e: unknown) {
-      const errMsg = e instanceof Error ? e.message : '未知错误';
+      let errMsg = '未知错误';
+      
+      if (e instanceof Error) {
+        errMsg = e.message;
+      } else if (typeof e === 'object' && e !== null && 'response' in e) {
+        const response = (e as any).response;
+        if (response?.data?.detail) {
+          errMsg = response.data.detail;
+        }
+      }
+      
       console.error('SQL生成失败:', e);
-      message.error('SQL生成失败: ' + errMsg);
+      
+      // 显示错误信息
+      if (errMsg.includes('401') || errMsg.includes('认证')) {
+        setBackendError(`❌ API 认证失败: ${errMsg}\n\n请查看 API_KEY_SETUP.md 配置文档`);
+      } else if (errMsg.includes('503') || errMsg.includes('未初始化')) {
+        setBackendError(`❌ 后端服务错误: ${errMsg}`);
+      } else {
+        setBackendError(`❌ 错误: ${errMsg}`);
+      }
+      
+      message.error('请求失败: ' + errMsg);
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: '抱歉，处理您的请求时出现错误，请检查后端服务是否正常运行。'
+        content: `❌ 错误: ${errMsg}\n\n请检查:\n1. 后端服务是否运行\n2. API 密钥配置是否正确`
       }]);
     } finally {
       setLoading(false);
@@ -110,6 +146,17 @@ const App: React.FC = () => {
         />
       </Sider>
       <Content style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        {backendError && (
+          <Alert
+            message="连接错误"
+            description={backendError}
+            type="error"
+            showIcon
+            closable
+            onClose={() => setBackendError(null)}
+            style={{ margin: '8px' }}
+          />
+        )}
         <div style={{ flex: 1, overflow: 'auto', padding: '16px', background: '#f5f5f5' }}>
           {messages.length === 0 ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#999' }}>

@@ -2,7 +2,7 @@ import os
 import json
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
-from schemas import TABLES
+from .schemas import TABLES
 
 
 def _extract_json(content: str) -> str:
@@ -25,10 +25,24 @@ def _extract_json(content: str) -> str:
 
 class NL2SQLService:
     def __init__(self):
+        api_key = os.getenv("ARK_API_KEY", "").strip()
+        
+        # 检查 API 密钥
+        if not api_key or api_key == "your_api_key_here":
+            raise ValueError(
+                "❌ 缺少有效的 API 密钥配置\n\n"
+                "请完成以下步骤：\n"
+                "1. 访问火山引擎控制台 (https://console.volcengine.com/)\n"
+                "2. 获取你的 API 密钥\n"
+                "3. 编辑 backend/.env 文件\n"
+                "4. 设置 ARK_API_KEY=你的实际_API_密钥\n"
+                "5. 重启后端服务"
+            )
+        
         self.llm = ChatOpenAI(
             base_url=os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
             model=os.getenv("ARK_MODEL", "doubao-pro-32k-241215"),
-            api_key=os.getenv("ARK_API_KEY", ""),
+            api_key=api_key,
         )
 
     def select_tables(self, question: str) -> list:
@@ -87,7 +101,7 @@ class NL2SQLService:
             HumanMessage(content=f"""相关表结构：
 {schema_str}
 
-{"对话历史：\n" + history_str if history_str else ""}
+{("对话历史：" + chr(10) + history_str) if history_str else ""}
 
 用户问题：{question}
 

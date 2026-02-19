@@ -1,0 +1,16 @@
+[project]
+name = "nl2sql-api"
+version = "0.1.0"
+description = "NL2SQL conversion API using FastAPI"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.129.0",
+    "uvicorn[standard]==0.41.0",
+    "langchain==1.2.10",
+    "langchain-openai==1.1.10",
+    "python-docx==1.2.0",
+    "sqlalchemy==2.0.46",
+    "python-dotenv==1.2.1",
+    "pydantic==2.12.5",
+    "requests>=2.32.5",
+]
