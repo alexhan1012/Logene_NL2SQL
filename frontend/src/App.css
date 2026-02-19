@@ -1,0 +1,9 @@
+.ant-layout {
+  height: 100%;
+}
+
+.ant-layout-sider,
+.ant-layout-content {
+  height: 100%;
+  overflow: hidden;
+}
