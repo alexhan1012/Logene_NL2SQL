@@ -145,7 +145,7 @@ TABLES = {
             {"name": "F_BC_BGGS", "type": "VARCHAR", "description": "报告格式"},
             {"name": "F_BC_FBSJ", "type": "DATETIME", "description": "发布时间"},
             {"name": "F_BC_FBYS", "type": "VARCHAR", "description": "发布医生"},
-            {"name": "F_pdfscsj", "type": "VARCHAR", "description": "PDF生成时间"},
+            {"name": "F_PDFSCSJ", "type": "VARCHAR", "description": "PDF生成时间"},
             {"name": "F_BC_SPARE1", "type": "VARCHAR", "description": "复片状态"},
             {"name": "F_BC_SPARE2", "type": "VARCHAR", "description": "复片医生"},
             {"name": "F_BC_SPARE6", "type": "VARCHAR", "description": "申请时间"},
@@ -185,7 +185,7 @@ TABLES = {
             {"name": "F_BD_BBMC", "type": "VARCHAR", "description": "标本名称"},
             {"name": "F_BD_RYSJ", "type": "VARCHAR", "description": "肉眼所见"},
             {"name": "F_BD_SPARE5", "type": "VARCHAR", "description": "审核时间"},
-            {"name": "F_pdfscsj", "type": "VARCHAR", "description": "PDF生成时间"},
+            {"name": "F_PDFSCSJ", "type": "VARCHAR", "description": "PDF生成时间"},
             {"name": "F_JPGSCSJ", "type": "VARCHAR", "description": "JPG生成时间"},
             {"name": "F_BD_PDFCLSJ", "type": "VARCHAR", "description": "PDF处理时间"},
             {"name": "F_BDDYCS", "type": "INT", "description": "冰冻打印次数"},
@@ -435,42 +435,99 @@ TABLES = {
     },
     "T_BBLC_CYC": {
         "description": "报告流程常用词表 - 标本名称/临床诊断常用词",
-        "fields": [],
+        "fields": [
+            {"name": "F_ID", "type": "INT", "description": "主键ID"},
+            {"name": "F_LX", "type": "VARCHAR", "description": "词条类型"},
+            {"name": "F_MC", "type": "VARCHAR", "description": "词条名称"},
+            {"name": "F_NR", "type": "TEXT", "description": "词条内容"},
+        ],
     },
     "T_BJW_CYC": {
         "description": "标记物常用词表 - 特检标记物说明配置",
-        "fields": [],
+        "fields": [
+            {"name": "F_ID", "type": "INT", "description": "主键ID"},
+            {"name": "F_BJW", "type": "VARCHAR", "description": "标记物名称"},
+            {"name": "F_SM", "type": "VARCHAR", "description": "标记物说明"},
+            {"name": "F_SX", "type": "INT", "description": "显示顺序"},
+        ],
     },
     "T_BLK_CS": {
         "description": "病例库参数表 - 病例库基础配置",
-        "fields": [],
+        "fields": [
+            {"name": "F_BLK", "type": "VARCHAR", "description": "病例库编码"},
+            {"name": "F_MC", "type": "VARCHAR", "description": "病例库名称"},
+            {"name": "F_ZT", "type": "VARCHAR", "description": "启用状态"},
+        ],
     },
     "T_CGBW_TREE": {
         "description": "常用词部位目录表 - 诊断常用词一二级部位结构",
-        "fields": [],
+        "fields": [
+            {"name": "F_ID", "type": "INT", "description": "节点ID"},
+            {"name": "F_PID", "type": "INT", "description": "父节点ID"},
+            {"name": "F_MC", "type": "VARCHAR", "description": "部位名称"},
+            {"name": "F_PXID", "type": "INT", "description": "排序号"},
+        ],
+    },
+    "T_CGBW_TRE": {
+        "description": "常用词部位目录表（兼容命名）",
+        "fields": [
+            {"name": "F_ID", "type": "INT", "description": "节点ID"},
+            {"name": "F_PID", "type": "INT", "description": "父节点ID"},
+            {"name": "F_MC", "type": "VARCHAR", "description": "部位名称"},
+            {"name": "F_PXID", "type": "INT", "description": "排序号"},
+        ],
     },
     "T_CG_CYC": {
         "description": "诊断常用词表 - 与部位目录关联的常用词内容",
-        "fields": [],
+        "fields": [
+            {"name": "F_ID", "type": "INT", "description": "主键ID"},
+            {"name": "F_BWID", "type": "INT", "description": "部位目录ID"},
+            {"name": "F_MC", "type": "VARCHAR", "description": "常用词名称"},
+            {"name": "F_NR", "type": "TEXT", "description": "常用词内容"},
+        ],
     },
     "T_CYC": {
         "description": "结构化字段映射表 - 模板字段名称配置",
-        "fields": [],
+        "fields": [
+            {"name": "F_ZDMC", "type": "VARCHAR", "description": "字段名"},
+            {"name": "F_ZDMS", "type": "VARCHAR", "description": "字段描述"},
+            {"name": "F_FL", "type": "VARCHAR", "description": "分类"},
+        ],
     },
     "T_CYC_FL": {
         "description": "常用词分类表 - 常用词分类维护",
-        "fields": [],
+        "fields": [
+            {"name": "F_ID", "type": "INT", "description": "分类ID"},
+            {"name": "F_MC", "type": "VARCHAR", "description": "分类名称"},
+            {"name": "F_PID", "type": "INT", "description": "上级分类ID"},
+        ],
     },
     "T_TBS_SY": {
         "description": "结构化报告模板表 - TBS模板与分类配置",
-        "fields": [],
+        "fields": [
+            {"name": "F_ID", "type": "INT", "description": "模板ID"},
+            {"name": "F_MC", "type": "VARCHAR", "description": "模板名称"},
+            {"name": "F_BG_BGFL", "type": "VARCHAR", "description": "报告分类"},
+            {"name": "F_MB", "type": "TEXT", "description": "模板内容"},
+        ],
     },
     "T_PDFJPG_SCCW": {
         "description": "PDF/JPG生成错误表 - 报告文件生成失败记录",
-        "fields": [],
+        "fields": [
+            {"name": "F_ID", "type": "INT", "description": "主键ID"},
+            {"name": "F_BLH", "type": "VARCHAR", "description": "病理号"},
+            {"name": "F_CWLX", "type": "VARCHAR", "description": "错误类型"},
+            {"name": "F_CWXX", "type": "TEXT", "description": "错误信息"},
+            {"name": "F_SCSJ", "type": "VARCHAR", "description": "生成时间"},
+        ],
     },
     "T_YH": {
         "description": "用户表 - 系统用户信息",
-        "fields": [],
+        "fields": [
+            {"name": "F_YHM", "type": "VARCHAR", "description": "用户名"},
+            {"name": "F_MM", "type": "VARCHAR", "description": "密码"},
+            {"name": "F_XM", "type": "VARCHAR", "description": "姓名"},
+            {"name": "F_ZT", "type": "VARCHAR", "description": "状态"},
+        ],
     },
 }
