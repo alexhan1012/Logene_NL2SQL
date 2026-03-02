@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Tabs, Spin, message, Alert } from 'antd';
+import { Layout, Tabs, Spin, message, Alert, Select, Space, Divider } from 'antd';
 import Sidebar from './components/Sidebar';
 import ChatMessage from './components/ChatMessage';
 import TableSchemaPanel from './components/TableSchemaPanel';
 import TableRelationDiagram from './components/TableRelationDiagram';
-import type { Message as MsgType, Session, TableSchema } from './types';
-import { sendMessage, getHistory, getSession, getTables, deleteSession, healthCheck } from './api';
+import SqlHistoryPanel from './components/SqlHistoryPanel';
+import SettingsModal from './components/SettingsModal';
+import SchemaManager from './components/SchemaManager';
+import type { Message as MsgType, Session, TableSchema, DatabaseVendor, SchemaLibrary } from './types';
+import { sendMessage, getHistory, getSession, getTables, deleteSession, healthCheck, getVendors, getSchemaLibraries } from './api';
 import { Input, Button } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import './App.css';
@@ -23,6 +26,15 @@ const App: React.FC = () => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // New state
+  const [vendors, setVendors] = useState<DatabaseVendor[]>([]);
+  const [libraries, setLibraries] = useState<SchemaLibrary[]>([]);
+  const [selectedVendor, setSelectedVendor] = useState<string | undefined>();
+  const [selectedLibrary, setSelectedLibrary] = useState<number | undefined>();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [schemaManagerOpen, setSchemaManagerOpen] = useState(false);
+  const [selectedSqlIndex, setSelectedSqlIndex] = useState<number | null>(null);
+
   useEffect(() => {
     // 检查后端连接
     healthCheck()
@@ -36,6 +48,7 @@ const App: React.FC = () => {
       });
 
     loadHistory();
+    loadVendorsAndLibraries();
     getTables().then(setTables).catch((err) => {
       console.error('Failed to load tables:', err);
       setBackendError('无法加载表结构，请检查后端服务');
@@ -55,8 +68,21 @@ const App: React.FC = () => {
     }
   };
 
+  const loadVendorsAndLibraries = async () => {
+    try {
+      const [v, l] = await Promise.all([getVendors(), getSchemaLibraries()]);
+      setVendors(v);
+      setLibraries(l);
+      if (v.length > 0 && !selectedVendor) setSelectedVendor(v[0].name);
+      if (l.length > 0 && !selectedLibrary) setSelectedLibrary(l[0].id);
+    } catch {
+      // ignore, will work with defaults
+    }
+  };
+
   const handleSelectSession = async (sessionId: string) => {
     setCurrentSessionId(sessionId);
+    setSelectedSqlIndex(null);
     try {
       const msgs = await getSession(sessionId);
       setMessages(msgs);
@@ -71,12 +97,21 @@ const App: React.FC = () => {
     setCurrentSessionId(undefined);
     setMessages([]);
     setLastSqlData(null);
+    setSelectedSqlIndex(null);
   };
 
   const handleDeleteSession = async (sessionId: string) => {
     await deleteSession(sessionId);
     if (currentSessionId === sessionId) handleNewChat();
     loadHistory();
+  };
+
+  const handleSelectSql = (index: number) => {
+    setSelectedSqlIndex(index);
+    const msg = messages[index];
+    if (msg?.sql_data) {
+      setLastSqlData(msg.sql_data);
+    }
   };
 
   const handleSend = async () => {
@@ -89,7 +124,7 @@ const App: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await sendMessage(question, currentSessionId);
+      const response = await sendMessage(question, currentSessionId, selectedVendor, selectedLibrary);
       setCurrentSessionId(response.session_id);
 
       const assistantMsg: MsgType = {
@@ -99,6 +134,7 @@ const App: React.FC = () => {
       };
       setMessages(prev => [...prev, assistantMsg]);
       setLastSqlData(response);
+      setSelectedSqlIndex(null);
       loadHistory();
       setBackendError(null);
     } catch (e: unknown) {
@@ -143,6 +179,8 @@ const App: React.FC = () => {
           onSelectSession={handleSelectSession}
           onNewChat={handleNewChat}
           onDeleteSession={handleDeleteSession}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenSchemaManager={() => setSchemaManagerOpen(true)}
         />
       </Sider>
       <Content style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -175,27 +213,57 @@ const App: React.FC = () => {
           )}
           <div ref={messagesEndRef} />
         </div>
-        <div style={{ padding: '12px 16px', background: '#fff', borderTop: '1px solid #e8e8e8', display: 'flex', gap: '8px', flexShrink: 0 }}>
-          <Input.TextArea
-            value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            placeholder="输入问题，例如：查询今天所有已发布的病理报告..."
-            autoSize={{ minRows: 1, maxRows: 4 }}
-            style={{ flex: 1 }}
-            disabled={loading}
-          />
-          <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading} style={{ alignSelf: 'flex-end' }}>
-            发送
-          </Button>
+        <div style={{ padding: '8px 16px', background: '#fff', borderTop: '1px solid #e8e8e8', flexShrink: 0 }}>
+          <Space style={{ marginBottom: '8px' }} wrap>
+            <Select
+              value={selectedVendor}
+              onChange={setSelectedVendor}
+              style={{ width: 160 }}
+              placeholder="选择数据库"
+              options={vendors.map(v => ({ value: v.name, label: v.display_name }))}
+              allowClear
+            />
+            <Select
+              value={selectedLibrary}
+              onChange={setSelectedLibrary}
+              style={{ width: 180 }}
+              placeholder="选择数据库库"
+              options={libraries.map(l => ({ value: l.id, label: l.name }))}
+              allowClear
+            />
+          </Space>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Input.TextArea
+              value={inputValue}
+              onChange={e => setInputValue(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+              placeholder="输入问题，例如：查询今天所有已发布的病理报告..."
+              autoSize={{ minRows: 1, maxRows: 4 }}
+              style={{ flex: 1 }}
+              disabled={loading}
+            />
+            <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading} style={{ alignSelf: 'flex-end' }}>
+              发送
+            </Button>
+          </div>
         </div>
       </Content>
       <Sider width={380} style={{ background: '#fff', borderLeft: '1px solid #e8e8e8', overflow: 'auto', height: '100vh' }}>
-        <Tabs defaultActiveKey="schema" style={{ height: '100%' }} items={[
+        <Tabs defaultActiveKey="schema" style={{ height: '100%', padding: '0 4px' }} items={[
           {
             key: 'relation',
             label: '表关系',
-            children: <TableRelationDiagram sqlData={lastSqlData} />,
+            children: (
+              <div>
+                <TableRelationDiagram sqlData={lastSqlData} />
+                <Divider style={{ margin: '8px 0' }} />
+                <SqlHistoryPanel
+                  messages={messages}
+                  selectedIndex={selectedSqlIndex}
+                  onSelect={handleSelectSql}
+                />
+              </div>
+            ),
           },
           {
             key: 'schema',
@@ -204,6 +272,9 @@ const App: React.FC = () => {
           },
         ]} />
       </Sider>
+
+      <SettingsModal open={settingsOpen} onClose={() => { setSettingsOpen(false); loadVendorsAndLibraries(); }} />
+      <SchemaManager open={schemaManagerOpen} onClose={() => { setSchemaManagerOpen(false); loadVendorsAndLibraries(); }} />
     </Layout>
   );
 };
