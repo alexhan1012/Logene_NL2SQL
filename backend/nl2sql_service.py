@@ -103,9 +103,30 @@ class NL2SQLService:
             api_key=api_key,
         )
 
-    def select_tables(self, question: str, tables_dict: dict) -> tuple[list, dict]:
+    def select_tables(self, question: str, tables_dict: dict,
+                       field_detail_tables: dict = None) -> tuple[list, dict]:
+        """Step 1: choose relevant tables.
+
+        field_detail_tables: dict mapping table_name -> list of field names whose
+        descriptions should appear in the prompt.
+        Format for matched tables: 表名 (字段描述1, 字段描述2, ...): 表描述
+        Tables not in the dict are shown as: 表名: 表描述.
+        """
+        field_detail_map = field_detail_tables or {}
+
+        def _field_desc(name, info):
+            selected_fields = field_detail_map.get(name)
+            if selected_fields is not None and info.get('fields'):
+                descs = [
+                    f['description'] for f in info['fields']
+                    if f['name'] in selected_fields and f.get('description')
+                ]
+                if descs:
+                    return f"- {name} ({', '.join(descs)}): {info['description']}"
+            return f"- {name}: {info['description']}"
+
         table_summary = "\n".join([
-            f"- {name} ({', '.join(f['name'] for f in info['fields'])}): {info['description']}"
+            _field_desc(name, info)
             for name, info in tables_dict.items()
         ])
 
@@ -113,7 +134,7 @@ class NL2SQLService:
 注意：可能需要多张表进行JOIN查询，请仔细分析字段依赖关系，选出所有相关的表。
 只返回JSON格式，例如: {"tables": ["T_JCXX", "T_LK"]}
 不要返回任何其他内容。"""
-        human_msg = f"""数据库表列表（格式：表名 (字段列表): 描述）：
+        human_msg = f"""数据库表列表（格式：表名 (字段描述): 表描述）：
 {table_summary}
 
 用户问题：{question}
@@ -249,11 +270,14 @@ class NL2SQLService:
     async def process_question(self, question: str, conversation_history: list = None,
                                tables_dict: dict = None, db_vendor: str = None,
                                fixed_tables: list = None,
-                               table_relations: list = None) -> dict:
+                               table_relations: list = None,
+                               field_detail_tables: list = None) -> dict:
         if tables_dict is None:
             tables_dict = TABLES
 
-        selected_tables, selection_log = self.select_tables(question, tables_dict)
+        selected_tables, selection_log = self.select_tables(
+            question, tables_dict, field_detail_tables=field_detail_tables
+        )
         if not selected_tables:
             first_table = next(iter(tables_dict), None)
             if first_table:

@@ -199,6 +199,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
 
         # Resolve fixed context tables from settings
         fixed_tables = None
+        field_detail_tables = None
         library_id_for_settings = request.schema_library_id
         if library_id_for_settings:
             setting_key = f"fixed_context_tables_{library_id_for_settings}"
@@ -208,6 +209,15 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
                     fixed_tables = json.loads(fixed_setting.value)
                 except Exception:
                     fixed_tables = None
+
+            # Resolve step1 field detail tables from settings
+            detail_key = f"step1_field_detail_tables_{library_id_for_settings}"
+            detail_setting = db.query(Setting).filter(Setting.key == detail_key).first()
+            if detail_setting and detail_setting.value:
+                try:
+                    field_detail_tables = json.loads(detail_setting.value)
+                except Exception:
+                    field_detail_tables = None
 
         # Resolve table relations for the library
         table_relations = None
@@ -232,6 +242,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
             db_vendor=request.db_vendor,
             fixed_tables=fixed_tables,
             table_relations=table_relations,
+            field_detail_tables=field_detail_tables,
         )
 
         assistant_content = f"```sql\n{result['sql']}\n```\n\n{result['explanation']}"

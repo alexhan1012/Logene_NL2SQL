@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Tabs, List, Button, Input, Space, Popconfirm, message, Empty, Tag, Typography, Table as AntTable } from 'antd';
+import { Modal, Tabs, List, Button, Input, Space, Popconfirm, message, Empty, Tag, Typography, Table as AntTable, Checkbox } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { SchemaLibrary, SchemaTableInfo, TableField, TableRelation } from '../types';
 import {
@@ -7,6 +7,7 @@ import {
   getLibraryTables, createSchemaTable, deleteSchemaTable,
   createSchemaField, deleteSchemaField,
   getLibraryRelations, createTableRelation, deleteTableRelation,
+  getSettings, updateSettings,
 } from '../api';
 
 interface Props {
@@ -36,6 +37,10 @@ const SchemaManager: React.FC<Props> = ({ open, onClose }) => {
   const [newRelDesc, setNewRelDesc] = useState('');
 
   const [activeTab, setActiveTab] = useState('tables');
+
+  // Step1 field config: table_name -> selected field names
+  const [step1FieldConfig, setStep1FieldConfig] = useState<Record<string, string[]>>({});
+  const [savingStep1, setSavingStep1] = useState(false);
 
   const loadLibraries = async () => {
     try {
@@ -77,6 +82,39 @@ const SchemaManager: React.FC<Props> = ({ open, onClose }) => {
   useEffect(() => {
     if (selectedLib) loadRelations(selectedLib);
   }, [selectedLib]);
+
+  const loadStep1Config = async (libId: number) => {
+    try {
+      const s = await getSettings();
+      const key = `step1_field_detail_tables_${libId}`;
+      try {
+        setStep1FieldConfig(s[key] ? JSON.parse(s[key]) : {});
+      } catch {
+        setStep1FieldConfig({});
+      }
+    } catch {
+      setStep1FieldConfig({});
+    }
+  };
+
+  useEffect(() => {
+    if (selectedLib) loadStep1Config(selectedLib);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLib]);
+
+  const handleSaveStep1Config = async () => {
+    if (!selectedLib) return;
+    setSavingStep1(true);
+    try {
+      const key = `step1_field_detail_tables_${selectedLib}`;
+      await updateSettings([{ key, value: JSON.stringify(step1FieldConfig) }]);
+      message.success('第一步字段配置已保存');
+    } catch {
+      message.error('保存失败');
+    } finally {
+      setSavingStep1(false);
+    }
+  };
 
   const handleAddLibrary = async () => {
     if (!newLibName.trim()) { message.warning('请输入库名称'); return; }
@@ -292,6 +330,64 @@ const SchemaManager: React.FC<Props> = ({ open, onClose }) => {
                     )}
                     locale={{ emptyText: '暂无表，请添加' }}
                   />
+                </div>
+              ),
+            },
+            {
+              key: 'step1_fields',
+              label: '第一步字段配置',
+              children: (
+                <div>
+                  <Typography.Paragraph type="secondary" style={{ fontSize: '13px' }}>
+                    配置第一步（表选择）提示词中，每张表需要展示哪些字段描述。勾选的字段将以「表名 (描述1, 描述2): 表描述」格式填入提示词。未配置的表仅展示表名和表描述。
+                  </Typography.Paragraph>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8 }}>
+                    <Button size="small" onClick={() => {
+                      const all: Record<string, string[]> = {};
+                      tables.forEach(t => { all[t.table_name] = t.fields.map(f => f.name); });
+                      setStep1FieldConfig(all);
+                    }}>全部全选</Button>
+                    <Button size="small" onClick={() => setStep1FieldConfig({})}>全部清空</Button>
+                    <Button type="primary" size="small" onClick={handleSaveStep1Config} loading={savingStep1}>保存配置</Button>
+                  </div>
+                  <div style={{ maxHeight: '45vh', overflowY: 'auto' }}>
+                    {tables.length === 0 ? (
+                      <Empty description="暂无表" />
+                    ) : tables.map(table => (
+                      <div key={table.id} style={{ marginBottom: 10, border: '1px solid #f0f0f0', borderRadius: 6, padding: '8px 12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <Space>
+                            <Tag color="blue" style={{ fontFamily: 'monospace' }}>{table.table_name}</Tag>
+                            {table.description && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{table.description}</Typography.Text>}
+                          </Space>
+                          <Space>
+                            <Button size="small" onClick={() =>
+                              setStep1FieldConfig(prev => ({ ...prev, [table.table_name]: table.fields.map(f => f.name) }))
+                            }>全选</Button>
+                            <Button size="small" onClick={() =>
+                              setStep1FieldConfig(prev => { const n = { ...prev }; delete n[table.table_name]; return n; })
+                            }>清空</Button>
+                          </Space>
+                        </div>
+                        {table.fields.length === 0 ? (
+                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>无字段</Typography.Text>
+                        ) : (
+                          <Checkbox.Group
+                            value={step1FieldConfig[table.table_name] || []}
+                            onChange={(vals) => setStep1FieldConfig(prev => ({ ...prev, [table.table_name]: vals as string[] }))}
+                            style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}
+                          >
+                            {table.fields.map(f => (
+                              <Checkbox key={f.id ?? f.name} value={f.name}>
+                                <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{f.name}</span>
+                                {f.description && <span style={{ color: '#888', marginLeft: 4, fontSize: 11 }}>{f.description}</span>}
+                              </Checkbox>
+                            ))}
+                          </Checkbox.Group>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ),
             },
