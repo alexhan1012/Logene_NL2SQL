@@ -70,13 +70,13 @@ class NL2SQLService:
         }
         if provider not in provider_config:
             supported_providers = " 或 ".join(sorted(provider_config.keys()))
-            raise ValueError(f"❌ 不支持的 LLM_PROVIDER，请使用 {supported_providers}")
+            raise ValueError(f"[ERROR] 不支持的 LLM_PROVIDER，请使用 {supported_providers}")
         config = provider_config[provider]
         api_key = config["api_key"]
 
         # 检查 API 密钥
         if not api_key or api_key == "your_api_key_here":
-            raise ValueError(f"❌ 缺少有效的 API 密钥配置\n\n请完成以下步骤：\n{config['error_help']}")
+            raise ValueError(f"[ERROR] 缺少有效的 API 密钥配置\n\n请完成以下步骤：\n{config['error_help']}")
 
         self.llm = ChatOpenAI(
             base_url=config["base_url"],

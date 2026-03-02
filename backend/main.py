@@ -21,28 +21,28 @@ from .schemas import TABLES
 nl2sql_service = None
 try:
     nl2sql_service = NL2SQLService()
-    print("✅ NL2SQL 服务初始化成功")
+    print("[OK] NL2SQL 服务初始化成功")
 except ValueError as e:
     print(f"\n{'='*60}")
-    print(f"❌ NL2SQL 服务初始化失败\n")
+    print(f"[ERROR] NL2SQL 服务初始化失败\n")
     print(f"{str(e)}\n")
     print(f"{'='*60}\n")
     # 不退出，允许服务器启动但在调用 API 时返回错误
 except Exception as e:
     print(f"\n{'='*60}")
-    print(f"❌ 启动错误: {str(e)}\n")
+    print(f"[ERROR] 启动错误: {str(e)}\n")
     print(f"{'='*60}\n")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("\n✅ NL2SQL API 服务启动成功")
-    print(f"📝 文档地址: http://localhost:8000/docs")
-    print(f"❓ 健康检查: http://localhost:8000/health")
+    print("\n[OK] NL2SQL API 服务启动成功")
+    print(f"[INFO] 文档地址: http://localhost:8000/docs")
+    print(f"[INFO] 健康检查: http://localhost:8000/health")
     print(f"{'='*60}\n")
     init_db()
     yield
-    print("\n🛑 NL2SQL API 服务已关闭")
+    print("\n[INFO] NL2SQL API 服务已关闭")
 
 
 app = FastAPI(title="NL2SQL API", lifespan=lifespan)
@@ -150,11 +150,11 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         raise
     except ValueError as e:
         # API 密钥配置错误
-        print(f"❌ Configuration error: {str(e)}")
+        print(f"[ERROR] Configuration error: {str(e)}")
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         error_str = str(e)
-        print(f"❌ Error in chat endpoint: {error_str}")
+        print(f"[ERROR] Error in chat endpoint: {error_str}")
         
         # 检测认证错误
         if "401" in error_str or "AuthenticationError" in error_str or "Unauthorized" in error_str:
