@@ -62,6 +62,16 @@ class SchemaField(Base):
     description = Column(String, nullable=True)
     table = relationship("SchemaTable", back_populates="fields")
 
+class TableRelation(Base):
+    __tablename__ = "table_relations"
+    id = Column(Integer, primary_key=True, index=True)
+    library_id = Column(Integer, ForeignKey("schema_libraries.id", ondelete="CASCADE"))
+    from_table = Column(String)
+    from_column = Column(String)
+    to_table = Column(String)
+    to_column = Column(String)
+    description = Column(String, nullable=True)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 

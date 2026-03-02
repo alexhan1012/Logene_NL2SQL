@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ChatResponse, Message, Session, TableSchema, DatabaseVendor, SchemaLibrary, SchemaTableInfo } from './types';
+import type { ChatResponse, Message, Session, TableSchema, DatabaseVendor, SchemaLibrary, SchemaTableInfo, TableRelation } from './types';
 
 const api = axios.create({ 
   baseURL: 'http://localhost:8000',
@@ -120,3 +120,16 @@ export const updateSchemaField = (fieldId: number, data: { name?: string; field_
 
 export const deleteSchemaField = (fieldId: number) =>
   api.delete(`/api/schema-fields/${fieldId}`).then(r => r.data);
+
+// Table Relations
+export const getLibraryRelations = (libraryId: number) =>
+  api.get<TableRelation[]>(`/api/schema-libraries/${libraryId}/relations`).then(r => r.data);
+
+export const createTableRelation = (libraryId: number, data: Omit<TableRelation, 'id' | 'library_id'>) =>
+  api.post<TableRelation>(`/api/schema-libraries/${libraryId}/relations`, data).then(r => r.data);
+
+export const updateTableRelation = (relationId: number, data: Partial<Omit<TableRelation, 'id' | 'library_id'>>) =>
+  api.put<TableRelation>(`/api/table-relations/${relationId}`, data).then(r => r.data);
+
+export const deleteTableRelation = (relationId: number) =>
+  api.delete(`/api/table-relations/${relationId}`).then(r => r.data);

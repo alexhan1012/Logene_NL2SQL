@@ -15,7 +15,7 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
 from .database import (
     init_db, get_db, Conversation, Message,
-    Setting, DatabaseVendor, SchemaLibrary, SchemaTable, SchemaField
+    Setting, DatabaseVendor, SchemaLibrary, SchemaTable, SchemaField, TableRelation
 )
 from .nl2sql_service import NL2SQLService
 from .schemas import TABLES
@@ -197,10 +197,41 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         if request.schema_library_id:
             tables_dict = _library_to_tables_dict(db, request.schema_library_id) or None
 
+        # Resolve fixed context tables from settings
+        fixed_tables = None
+        library_id_for_settings = request.schema_library_id
+        if library_id_for_settings:
+            setting_key = f"fixed_context_tables_{library_id_for_settings}"
+            fixed_setting = db.query(Setting).filter(Setting.key == setting_key).first()
+            if fixed_setting and fixed_setting.value:
+                try:
+                    fixed_tables = json.loads(fixed_setting.value)
+                except Exception:
+                    fixed_tables = None
+
+        # Resolve table relations for the library
+        table_relations = None
+        if request.schema_library_id:
+            rels = db.query(TableRelation).filter(
+                TableRelation.library_id == request.schema_library_id
+            ).all()
+            table_relations = [
+                {
+                    "from_table": r.from_table,
+                    "from_column": r.from_column,
+                    "to_table": r.to_table,
+                    "to_column": r.to_column,
+                    "description": r.description or "",
+                }
+                for r in rels
+            ]
+
         result = await nl2sql_service.process_question(
             request.question, history,
             tables_dict=tables_dict,
-            db_vendor=request.db_vendor
+            db_vendor=request.db_vendor,
+            fixed_tables=fixed_tables,
+            table_relations=table_relations,
         )
 
         assistant_content = f"```sql\n{result['sql']}\n```\n\n{result['explanation']}"
@@ -474,5 +505,93 @@ async def update_field(field_id: int, field: FieldUpdate, db: Session = Depends(
 @app.delete("/api/schema-fields/{field_id}")
 async def delete_field(field_id: int, db: Session = Depends(get_db)):
     db.query(SchemaField).filter(SchemaField.id == field_id).delete()
+    db.commit()
+    return {"status": "deleted"}
+
+
+# ─── Table Relations ───
+
+class RelationCreate(BaseModel):
+    from_table: str
+    from_column: str
+    to_table: str
+    to_column: str
+    description: Optional[str] = None
+
+class RelationUpdate(BaseModel):
+    from_table: Optional[str] = None
+    from_column: Optional[str] = None
+    to_table: Optional[str] = None
+    to_column: Optional[str] = None
+    description: Optional[str] = None
+
+@app.get("/api/schema-libraries/{library_id}/relations")
+async def list_relations(library_id: int, db: Session = Depends(get_db)):
+    rels = db.query(TableRelation).filter(TableRelation.library_id == library_id).all()
+    return [
+        {
+            "id": r.id,
+            "library_id": r.library_id,
+            "from_table": r.from_table,
+            "from_column": r.from_column,
+            "to_table": r.to_table,
+            "to_column": r.to_column,
+            "description": r.description,
+        }
+        for r in rels
+    ]
+
+@app.post("/api/schema-libraries/{library_id}/relations")
+async def create_relation(library_id: int, rel: RelationCreate, db: Session = Depends(get_db)):
+    r = TableRelation(
+        library_id=library_id,
+        from_table=rel.from_table,
+        from_column=rel.from_column,
+        to_table=rel.to_table,
+        to_column=rel.to_column,
+        description=rel.description,
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return {
+        "id": r.id,
+        "library_id": r.library_id,
+        "from_table": r.from_table,
+        "from_column": r.from_column,
+        "to_table": r.to_table,
+        "to_column": r.to_column,
+        "description": r.description,
+    }
+
+@app.put("/api/table-relations/{relation_id}")
+async def update_relation(relation_id: int, rel: RelationUpdate, db: Session = Depends(get_db)):
+    r = db.query(TableRelation).filter(TableRelation.id == relation_id).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="关联关系不存在")
+    if rel.from_table is not None:
+        r.from_table = rel.from_table
+    if rel.from_column is not None:
+        r.from_column = rel.from_column
+    if rel.to_table is not None:
+        r.to_table = rel.to_table
+    if rel.to_column is not None:
+        r.to_column = rel.to_column
+    if rel.description is not None:
+        r.description = rel.description
+    db.commit()
+    return {
+        "id": r.id,
+        "library_id": r.library_id,
+        "from_table": r.from_table,
+        "from_column": r.from_column,
+        "to_table": r.to_table,
+        "to_column": r.to_column,
+        "description": r.description,
+    }
+
+@app.delete("/api/table-relations/{relation_id}")
+async def delete_relation(relation_id: int, db: Session = Depends(get_db)):
+    db.query(TableRelation).filter(TableRelation.id == relation_id).delete()
     db.commit()
     return {"status": "deleted"}

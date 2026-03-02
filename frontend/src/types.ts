@@ -65,3 +65,13 @@ export interface SchemaTableInfo {
   description?: string;
   fields: TableField[];
 }
+
+export interface TableRelation {
+  id: number;
+  library_id: number;
+  from_table: string;
+  from_column: string;
+  to_table: string;
+  to_column: string;
+  description?: string;
+}

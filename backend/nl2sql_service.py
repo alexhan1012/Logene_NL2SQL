@@ -105,19 +105,20 @@ class NL2SQLService:
 
     def select_tables(self, question: str, tables_dict: dict) -> tuple[list, dict]:
         table_summary = "\n".join([
-            f"- {name}: {info['description']}"
+            f"- {name} ({', '.join(f['name'] for f in info['fields'])}): {info['description']}"
             for name, info in tables_dict.items()
         ])
 
         system_msg = """你是一个SQL专家。根据用户的问题，从给定的数据库表列表中选择需要用到的表。
+注意：可能需要多张表进行JOIN查询，请仔细分析字段依赖关系，选出所有相关的表。
 只返回JSON格式，例如: {"tables": ["T_JCXX", "T_LK"]}
 不要返回任何其他内容。"""
-        human_msg = f"""数据库表列表：
+        human_msg = f"""数据库表列表（格式：表名 (字段列表): 描述）：
 {table_summary}
 
 用户问题：{question}
 
-请选择需要用到的表（只返回JSON）："""
+请选择需要用到的所有表（可以是多张表，只返回JSON）："""
 
         messages = [
             SystemMessage(content=system_msg),
@@ -140,7 +141,8 @@ class NL2SQLService:
         return tables, log
 
     def generate_sql(self, question: str, selected_tables: list, tables_dict: dict,
-                     conversation_history: list = None, db_vendor: str = None) -> dict:
+                     conversation_history: list = None, db_vendor: str = None,
+                     table_relations: list = None) -> dict:
         schema_details = []
         for table_name in selected_tables:
             if table_name in tables_dict:
@@ -152,6 +154,16 @@ class NL2SQLService:
                 schema_details.append(f"表名: {table_name}\n描述: {table['description']}\n字段:\n{fields_str}")
 
         schema_str = "\n\n".join(schema_details)
+
+        relations_str = ""
+        if table_relations:
+            rel_lines = [
+                f"  - {r['from_table']}.{r['from_column']} -> {r['to_table']}.{r['to_column']}"
+                + (f" ({r['description']})" if r.get('description') else "")
+                for r in table_relations
+            ]
+            if rel_lines:
+                relations_str = "\n\n表关联关系（外键->主键）：\n" + "\n".join(rel_lines)
 
         history_str = ""
         if conversation_history:
@@ -167,15 +179,17 @@ class NL2SQLService:
 根据用户问题和提供的表结构，生成准确的SQL查询语句。
 所有表都通过F_BLH(病理号)关联。{vendor_hint}
 
+如果用户的问题中包含了当前已知表结构中不存在的字段过滤条件（例如用户提到了某个属性，但已知表中没有对应字段），请不要强行生成包含不存在字段的SQL。请在sql字段中输出特殊标记：NEED_MORE_INFO: [缺失的实体或属性描述]
+
 返回JSON格式：
 {{
-  "sql": "SELECT语句",
+  "sql": "SELECT语句 或 NEED_MORE_INFO: [缺失描述]",
   "joins": ["JOIN条件描述1", "JOIN条件描述2"],
   "explanation": "查询逻辑说明"
 }}
 只返回JSON，不要其他内容。"""
         human_msg = f"""相关表结构：
-{schema_str}
+{schema_str}{relations_str}
 
 {("对话历史：" + chr(10) + history_str) if history_str else ""}
 
@@ -208,8 +222,34 @@ class NL2SQLService:
             "log": log,
         }
 
+    def _find_tables_for_missing_info(self, missing_info: str, tables_dict: dict,
+                                      excluded_tables: list) -> list:
+        """Find tables that might contain the missing information by keyword matching.
+
+        Single-character tokens are excluded to reduce noise (especially relevant
+        for Chinese text where meaningful terms are typically 2+ characters).
+        Returns up to 2 top-scoring candidate tables to limit context growth per iteration.
+        """
+        keywords = [kw for kw in missing_info.lower().split() if len(kw) > 1]
+        candidates = []
+        for table_name, table_info in tables_dict.items():
+            if table_name in excluded_tables:
+                continue
+            table_text = (
+                table_info['description'] + " " +
+                " ".join(f['name'] + " " + f['description'] for f in table_info['fields'])
+            ).lower()
+            score = sum(1 for kw in keywords if kw in table_text)
+            if score > 0:
+                candidates.append((score, table_name))
+        candidates.sort(reverse=True)
+        # Return at most 2 additional tables per iteration to avoid context bloat
+        return [t for _, t in candidates[:2]]
+
     async def process_question(self, question: str, conversation_history: list = None,
-                               tables_dict: dict = None, db_vendor: str = None) -> dict:
+                               tables_dict: dict = None, db_vendor: str = None,
+                               fixed_tables: list = None,
+                               table_relations: list = None) -> dict:
         if tables_dict is None:
             tables_dict = TABLES
 
@@ -219,13 +259,43 @@ class NL2SQLService:
             if first_table:
                 selected_tables = [first_table]
 
-        result = self.generate_sql(question, selected_tables, tables_dict, conversation_history, db_vendor)
-        sql_log = result["log"]
+        # Always include fixed context tables
+        if fixed_tables:
+            for t in fixed_tables:
+                if t in tables_dict and t not in selected_tables:
+                    selected_tables.append(t)
+
+        all_logs = [selection_log]
+
+        # Step 2: SQL generation with self-healing loop (max 3 iterations)
+        result = None
+        for attempt in range(3):
+            relevant_relations = [
+                r for r in (table_relations or [])
+                if r['from_table'] in selected_tables or r['to_table'] in selected_tables
+            ]
+
+            result = self.generate_sql(
+                question, selected_tables, tables_dict,
+                conversation_history, db_vendor, relevant_relations
+            )
+            all_logs.append(result["log"])
+
+            sql = result.get("sql", "")
+            if sql.startswith("NEED_MORE_INFO:"):
+                missing_info = sql[len("NEED_MORE_INFO:"):].strip()
+                additional_tables = self._find_tables_for_missing_info(
+                    missing_info, tables_dict, selected_tables
+                )
+                if additional_tables:
+                    selected_tables = selected_tables + additional_tables
+                    continue
+            break
 
         return {
             "sql": result["sql"],
             "joins": result["joins"],
             "explanation": result["explanation"],
-            "tables_used": result["tables_used"],
-            "call_logs": [selection_log, sql_log],
+            "tables_used": selected_tables,
+            "call_logs": all_logs,
         }
