@@ -1,3 +1,10 @@
+export interface CallLogEntry {
+  step: 'table_selection' | 'sql_generation';
+  request: { role: string; content: string }[];
+  response: string;
+  selected_tables?: string[];
+}
+
 export interface Message {
   id?: number;
   role: 'user' | 'assistant';
@@ -7,6 +14,7 @@ export interface Message {
     tables_used: string[];
     joins: string[];
     explanation: string;
+    call_logs?: CallLogEntry[];
   };
   created_at?: string;
 }
@@ -36,6 +44,7 @@ export interface ChatResponse {
   joins: string[];
   explanation: string;
   session_id: string;
+  call_logs?: CallLogEntry[];
 }
 
 export interface DatabaseVendor {

@@ -103,27 +103,41 @@ class NL2SQLService:
             api_key=api_key,
         )
 
-    def select_tables(self, question: str, tables_dict: dict) -> list:
+    def select_tables(self, question: str, tables_dict: dict) -> tuple[list, dict]:
         table_summary = "\n".join([
             f"- {name}: {info['description']}"
             for name, info in tables_dict.items()
         ])
 
-        messages = [
-            SystemMessage(content="""你是一个SQL专家。根据用户的问题，从给定的数据库表列表中选择需要用到的表。
+        system_msg = """你是一个SQL专家。根据用户的问题，从给定的数据库表列表中选择需要用到的表。
 只返回JSON格式，例如: {"tables": ["T_JCXX", "T_LK"]}
-不要返回任何其他内容。"""),
-            HumanMessage(content=f"""数据库表列表：
+不要返回任何其他内容。"""
+        human_msg = f"""数据库表列表：
 {table_summary}
 
 用户问题：{question}
 
-请选择需要用到的表（只返回JSON）：""")
+请选择需要用到的表（只返回JSON）："""
+
+        messages = [
+            SystemMessage(content=system_msg),
+            HumanMessage(content=human_msg)
         ]
 
         response = self.llm.invoke(messages)
         result = json.loads(_extract_json(response.content))
-        return result.get("tables", [])
+        tables = result.get("tables", [])
+
+        log = {
+            "step": "table_selection",
+            "request": [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": human_msg},
+            ],
+            "response": response.content,
+            "selected_tables": tables,
+        }
+        return tables, log
 
     def generate_sql(self, question: str, selected_tables: list, tables_dict: dict,
                      conversation_history: list = None, db_vendor: str = None) -> dict:
@@ -149,8 +163,7 @@ class NL2SQLService:
         if db_vendor and db_vendor in DB_VENDOR_HINTS:
             vendor_hint = f"\n\n重要：{DB_VENDOR_HINTS[db_vendor]}"
 
-        messages = [
-            SystemMessage(content=f"""你是一个SQL专家，专门处理数据库查询。
+        system_msg = f"""你是一个SQL专家，专门处理数据库查询。
 根据用户问题和提供的表结构，生成准确的SQL查询语句。
 所有表都通过F_BLH(病理号)关联。{vendor_hint}
 
@@ -160,24 +173,39 @@ class NL2SQLService:
   "joins": ["JOIN条件描述1", "JOIN条件描述2"],
   "explanation": "查询逻辑说明"
 }}
-只返回JSON，不要其他内容。"""),
-            HumanMessage(content=f"""相关表结构：
+只返回JSON，不要其他内容。"""
+        human_msg = f"""相关表结构：
 {schema_str}
 
 {("对话历史：" + chr(10) + history_str) if history_str else ""}
 
 用户问题：{question}
 
-请生成SQL查询（只返回JSON）：""")
+请生成SQL查询（只返回JSON）："""
+
+        messages = [
+            SystemMessage(content=system_msg),
+            HumanMessage(content=human_msg)
         ]
 
         response = self.llm.invoke(messages)
         result = json.loads(_extract_json(response.content))
+
+        log = {
+            "step": "sql_generation",
+            "request": [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": human_msg},
+            ],
+            "response": response.content,
+        }
+
         return {
             "sql": result.get("sql", ""),
             "joins": result.get("joins", []),
             "explanation": result.get("explanation", ""),
-            "tables_used": selected_tables
+            "tables_used": selected_tables,
+            "log": log,
         }
 
     async def process_question(self, question: str, conversation_history: list = None,
@@ -185,11 +213,19 @@ class NL2SQLService:
         if tables_dict is None:
             tables_dict = TABLES
 
-        selected_tables = self.select_tables(question, tables_dict)
+        selected_tables, selection_log = self.select_tables(question, tables_dict)
         if not selected_tables:
             first_table = next(iter(tables_dict), None)
             if first_table:
                 selected_tables = [first_table]
 
         result = self.generate_sql(question, selected_tables, tables_dict, conversation_history, db_vendor)
-        return result
+        sql_log = result["log"]
+
+        return {
+            "sql": result["sql"],
+            "joins": result["joins"],
+            "explanation": result["explanation"],
+            "tables_used": result["tables_used"],
+            "call_logs": [selection_log, sql_log],
+        }
