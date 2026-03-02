@@ -223,9 +223,10 @@ SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
 
 ### Frontend
 
-前端使用 `src/api.ts` 中配置的后端地址：
-```typescript
-const API_BASE_URL = 'http://localhost:8000';
+前端通过环境变量配置后端地址和超时（`frontend/.env.development`）：
+```env
+VITE_API_BASE_URL=http://localhost:8000
+VITE_API_TIMEOUT_MS=120000
 ```
 
 ## 🎯 功能特性

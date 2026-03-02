@@ -1,9 +1,14 @@
 import axios from 'axios';
 import type { ChatResponse, Message, Session, TableSchema, DatabaseVendor, SchemaLibrary, SchemaTableInfo, TableRelation } from './types';
 
+const envBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+const apiBaseUrl = (envBaseUrl && envBaseUrl.length > 0 ? envBaseUrl : 'http://localhost:8000').replace(/\/+$/, '');
+const parsedTimeout = Number(import.meta.env.VITE_API_TIMEOUT_MS ?? 120000);
+const apiTimeout = Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : 120000;
+
 const api = axios.create({ 
-  baseURL: 'http://localhost:8000',
-  timeout: 30000,
+  baseURL: apiBaseUrl,
+  timeout: apiTimeout,
   headers: {
     'Content-Type': 'application/json',
   }
@@ -12,7 +17,7 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
-    console.log(`🚀 Request: ${config.method?.toUpperCase()} ${config.url}`);
+    console.log(`🚀 Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     return config;
   },
   (error) => {
@@ -28,6 +33,13 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
+      console.error('❌ Request timeout:', error.message);
+      error.message = '请求超时，请稍后重试（后端处理可能较慢）';
+    } else if (error.message === 'Network Error') {
+      error.message = `无法连接到服务器 (${apiBaseUrl})，请检查后端服务和网络`;
+    }
+
     if (error.response) {
       console.error(`❌ Response error: ${error.response.status} - ${error.response.statusText}`);
       console.error('Error data:', error.response.data);
@@ -42,7 +54,9 @@ api.interceptors.response.use(
       }
     } else if (error.request) {
       console.error('❌ No response received:', error.request);
-      error.message = '无法连接到服务器，请检查后端是否运行';
+      if (error.code !== 'ECONNABORTED') {
+        error.message = `无法连接到服务器 (${apiBaseUrl})，请检查后端是否运行`;
+      }
     } else {
       console.error('❌ Error:', error.message);
     }

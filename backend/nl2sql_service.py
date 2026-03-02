@@ -40,11 +40,21 @@ def _extract_json(content: str) -> str:
 class NL2SQLService:
     def __init__(self, api_key=None, base_url=None, model=None, provider=None):
         """Initialize the service. If parameters are provided, use them; otherwise read from env."""
+        timeout_raw = os.getenv("LLM_TIMEOUT_SECONDS", "90").strip()
+        try:
+            llm_timeout = float(timeout_raw)
+            if llm_timeout <= 0:
+                llm_timeout = 90.0
+        except ValueError:
+            llm_timeout = 90.0
+
         if api_key and base_url and model:
             self.llm = ChatOpenAI(
                 base_url=base_url,
                 model=model,
                 api_key=api_key,
+                timeout=llm_timeout,
+                max_retries=2,
             )
             return
 
@@ -101,6 +111,8 @@ class NL2SQLService:
             base_url=config["base_url"],
             model=config["model"],
             api_key=api_key,
+            timeout=llm_timeout,
+            max_retries=2,
         )
 
     def select_tables(self, question: str, tables_dict: dict,

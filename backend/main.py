@@ -104,9 +104,10 @@ app.add_middleware(
         "http://127.0.0.1:5175",
         "http://127.0.0.1:3000"
     ],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["content-type", "authorization"],
+    allow_methods=["*"],
+    allow_headers=["*"],
     expose_headers=["*"],
     max_age=3600,
 )
@@ -269,6 +270,13 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
     except Exception as e:
         error_str = str(e)
         print(f"[ERROR] Error in chat endpoint: {error_str}")
+
+        timeout_markers = ["timeout", "timed out", "readtimeout", "connecttimeout", "apitimeouterror"]
+        if any(marker in error_str.lower() for marker in timeout_markers):
+            raise HTTPException(
+                status_code=504,
+                detail="LLM 服务响应超时，请稍后重试，或检查模型服务与网络连通性"
+            )
         
         # 检测认证错误
         if "401" in error_str or "AuthenticationError" in error_str or "Unauthorized" in error_str:

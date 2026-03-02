@@ -4,6 +4,7 @@
 import requests
 import sys
 import json
+import os
 from urllib.parse import urljoin
 
 # 颜色输出
@@ -79,7 +80,7 @@ def test_chat_api():
         response = requests.post(
             f"{API_URL}/api/chat",
             json=payload,
-            timeout=15,
+            timeout=100,
             headers={"Content-Type": "application/json"}
         )
         
@@ -103,6 +104,10 @@ def test_chat_api():
             print(f"  💡 提示: 这通常意味着 API 密钥配置有问题")
             print(f"  📣 查看详情: API_KEY_SETUP.md")
             return False
+        elif response.status_code == 504:
+            print_status(False, f"LLM 服务超时: {response.text}")
+            print("  💡 提示: 后端已可用，但上游模型服务响应慢或不可达")
+            return False
         elif response.status_code == 500:
             print_status(False, f"服务器错误: {response.text}")
             return False
@@ -114,10 +119,11 @@ def test_chat_api():
                 print(f"  响应内容: {response.text[:200]}")
             return False
     except requests.Timeout:
-        print_status(False, "请求超时 - LLM API 响应缓慢或无响应")
+        print_status(False, "请求超时 - 可能超过后端 LLM 超时阈值或模型服务不可达")
+        provider = os.getenv("LLM_PROVIDER", "ark").strip().lower()
         print("  检查事项:")
-        print("    - ARK_API_KEY 是否正确设置")
-        print("    - ARK_BASE_URL 是否可访问")
+        print(f"    - 当前 LLM_PROVIDER={provider} 的 API 密钥是否正确设置")
+        print("    - 对应的 BASE_URL 是否可访问")
         print("    - 网络连接是否正常")
         return False
     except Exception as e:
