@@ -195,9 +195,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         # Resolve tables dict
         tables_dict = None
         if request.schema_library_id:
-            tables_dict = _library_to_tables_dict(db, request.schema_library_id)
-            if not tables_dict:
-                tables_dict = None
+            tables_dict = _library_to_tables_dict(db, request.schema_library_id) or None
 
         result = await nl2sql_service.process_question(
             request.question, history,

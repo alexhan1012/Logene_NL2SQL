@@ -47,6 +47,7 @@ const SchemaManager: React.FC<Props> = ({ open, onClose }) => {
 
   useEffect(() => {
     if (open) loadLibraries();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -130,7 +131,7 @@ const SchemaManager: React.FC<Props> = ({ open, onClose }) => {
     label: (
       <span>
         {lib.name}
-        <Popconfirm title="确认删除此库？所有表和字段都将被删除" onConfirm={(e) => { e?.stopPropagation(); handleDeleteLibrary(lib.id); }}>
+        <Popconfirm title="确认删除此库？所有表和字段都将被删除" onConfirm={() => handleDeleteLibrary(lib.id)}>
           <DeleteOutlined style={{ marginLeft: 8, color: '#ff4d4f', fontSize: '11px' }} onClick={e => e.stopPropagation()} />
         </Popconfirm>
       </span>

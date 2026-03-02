@@ -53,7 +53,7 @@ const SqlHistoryPanel: React.FC<Props> = ({ messages, selectedIndex, onSelect })
                 ellipsis
                 style={{ fontSize: '12px', fontFamily: 'Consolas, Monaco, monospace', display: 'block' }}
               >
-                {msg.sql_data!.sql.substring(0, 80)}...
+                {msg.sql_data!.sql.length > 80 ? msg.sql_data!.sql.substring(0, 80) + '...' : msg.sql_data!.sql}
               </Typography.Text>
             </div>
           </List.Item>

@@ -53,6 +53,7 @@ const App: React.FC = () => {
       console.error('Failed to load tables:', err);
       setBackendError('无法加载表结构，请检查后端服务');
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -227,7 +228,7 @@ const App: React.FC = () => {
               value={selectedLibrary}
               onChange={setSelectedLibrary}
               style={{ width: 180 }}
-              placeholder="选择数据库库"
+              placeholder="选择模式库"
               options={libraries.map(l => ({ value: l.id, label: l.name }))}
               allowClear
             />
