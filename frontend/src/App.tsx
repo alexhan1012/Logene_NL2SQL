@@ -7,6 +7,7 @@ import TableRelationDiagram from './components/TableRelationDiagram';
 import SqlHistoryPanel from './components/SqlHistoryPanel';
 import SettingsModal from './components/SettingsModal';
 import SchemaManager from './components/SchemaManager';
+import CallLogPanel from './components/CallLogPanel';
 import type { Message as MsgType, Session, TableSchema, DatabaseVendor, SchemaLibrary } from './types';
 import { sendMessage, getHistory, getSession, getTables, deleteSession, healthCheck, getVendors, getSchemaLibraries } from './api';
 import { Input, Button } from 'antd';
@@ -270,6 +271,11 @@ const App: React.FC = () => {
             key: 'schema',
             label: '表结构',
             children: <TableSchemaPanel tables={tables} />,
+          },
+          {
+            key: 'calllogs',
+            label: '调用日志',
+            children: <CallLogPanel messages={messages} />,
           },
         ]} />
       </Sider>
