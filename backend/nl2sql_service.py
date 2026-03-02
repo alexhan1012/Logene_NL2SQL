@@ -29,8 +29,20 @@ def _extract_json(content: str) -> str:
 
 class NL2SQLService:
     def __init__(self):
-        provider = os.getenv("LLM_PROVIDER", "ark").strip().lower()
+        provider = os.getenv("LLM_PROVIDER", "bailian").strip().lower()
         provider_config = {
+            "bailian": {
+                "api_key": os.getenv("BAILIAN_API_KEY", "").strip(),
+                "base_url": os.getenv("BAILIAN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+                "model": os.getenv("BAILIAN_MODEL", "qwen-max"),
+                "error_help": (
+                    "1. 访问阿里云百炼控制台 (https://bailian.console.aliyun.com/)\n"
+                    "2. 获取你的 API 密钥\n"
+                    "3. 编辑 backend/.env 文件\n"
+                    "4. 设置 BAILIAN_API_KEY=你的实际_API_密钥\n"
+                    "5. 重启后端服务"
+                ),
+            },
             "ark": {
                 "api_key": os.getenv("ARK_API_KEY", "").strip(),
                 "base_url": os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
