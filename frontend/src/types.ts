@@ -19,6 +19,7 @@ export interface Session {
 }
 
 export interface TableField {
+  id?: number;
   name: string;
   type: string;
   description: string;
@@ -35,4 +36,23 @@ export interface ChatResponse {
   joins: string[];
   explanation: string;
   session_id: string;
+}
+
+export interface DatabaseVendor {
+  id: number;
+  name: string;
+  display_name: string;
+}
+
+export interface SchemaLibrary {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+export interface SchemaTableInfo {
+  id: number;
+  table_name: string;
+  description?: string;
+  fields: TableField[];
 }

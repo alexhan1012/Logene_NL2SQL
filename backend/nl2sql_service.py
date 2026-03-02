@@ -9,6 +9,16 @@ from .schemas import TABLES
 load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
 
+DB_VENDOR_HINTS = {
+    "sqlserver": "请生成 Microsoft SQL Server (T-SQL) 语法的SQL。注意：使用 TOP 代替 LIMIT，使用 GETDATE() 获取当前时间，字符串拼接使用 +，使用 ISNULL 而非 IFNULL。",
+    "oracle": "请生成 Oracle 数据库语法的SQL。注意：使用 ROWNUM 或 FETCH FIRST 限制行数，使用 SYSDATE 或 SYSTIMESTAMP 获取当前时间，使用 NVL 而非 IFNULL，字符串拼接使用 ||。",
+    "postgresql": "请生成 PostgreSQL 语法的SQL。注意：使用 LIMIT 限制行数，使用 NOW() 或 CURRENT_TIMESTAMP 获取当前时间，使用 COALESCE 而非 IFNULL，支持 ILIKE 不区分大小写匹配。",
+    "mysql": "请生成 MySQL 语法的SQL。注意：使用 LIMIT 限制行数，使用 NOW() 获取当前时间，使用 IFNULL，字符串拼接使用 CONCAT()。",
+    "kingbasees": "请生成人大金仓(KingbaseES)数据库语法的SQL。KingbaseES 兼容 PostgreSQL 语法，使用 LIMIT 限制行数，使用 NOW() 获取当前时间，使用 COALESCE 而非 IFNULL。",
+    "dm": "请生成达梦(DM)数据库语法的SQL。达梦数据库兼容 Oracle 语法，使用 ROWNUM 限制行数，使用 SYSDATE 获取当前时间，使用 NVL。",
+}
+
+
 def _extract_json(content: str) -> str:
     """Strip markdown code fences from LLM response to get raw JSON."""
     content = content.strip()
@@ -28,8 +38,17 @@ def _extract_json(content: str) -> str:
 
 
 class NL2SQLService:
-    def __init__(self):
-        provider = os.getenv("LLM_PROVIDER", "bailian").strip().lower()
+    def __init__(self, api_key=None, base_url=None, model=None, provider=None):
+        """Initialize the service. If parameters are provided, use them; otherwise read from env."""
+        if api_key and base_url and model:
+            self.llm = ChatOpenAI(
+                base_url=base_url,
+                model=model,
+                api_key=api_key,
+            )
+            return
+
+        provider = provider or os.getenv("LLM_PROVIDER", "bailian").strip().lower()
         provider_config = {
             "bailian": {
                 "api_key": os.getenv("BAILIAN_API_KEY", "").strip(),
@@ -84,10 +103,10 @@ class NL2SQLService:
             api_key=api_key,
         )
 
-    def select_tables(self, question: str) -> list:
+    def select_tables(self, question: str, tables_dict: dict) -> list:
         table_summary = "\n".join([
             f"- {name}: {info['description']}"
-            for name, info in TABLES.items()
+            for name, info in tables_dict.items()
         ])
 
         messages = [
@@ -106,11 +125,12 @@ class NL2SQLService:
         result = json.loads(_extract_json(response.content))
         return result.get("tables", [])
 
-    def generate_sql(self, question: str, selected_tables: list, conversation_history: list = None) -> dict:
+    def generate_sql(self, question: str, selected_tables: list, tables_dict: dict,
+                     conversation_history: list = None, db_vendor: str = None) -> dict:
         schema_details = []
         for table_name in selected_tables:
-            if table_name in TABLES:
-                table = TABLES[table_name]
+            if table_name in tables_dict:
+                table = tables_dict[table_name]
                 fields_str = "\n".join([
                     f"  - {f['name']} ({f['type']}): {f['description']}"
                     for f in table['fields']
@@ -121,21 +141,25 @@ class NL2SQLService:
 
         history_str = ""
         if conversation_history:
-            for msg in conversation_history[-4:]:
+            for msg in conversation_history[-6:]:
                 role = "用户" if msg["role"] == "user" else "助手"
                 history_str += f"{role}: {msg['content']}\n"
 
+        vendor_hint = ""
+        if db_vendor and db_vendor in DB_VENDOR_HINTS:
+            vendor_hint = f"\n\n重要：{DB_VENDOR_HINTS[db_vendor]}"
+
         messages = [
-            SystemMessage(content="""你是一个SQL专家，专门处理病理信息系统的数据库查询。
+            SystemMessage(content=f"""你是一个SQL专家，专门处理数据库查询。
 根据用户问题和提供的表结构，生成准确的SQL查询语句。
-所有表都通过F_BLH(病理号)关联。
+所有表都通过F_BLH(病理号)关联。{vendor_hint}
 
 返回JSON格式：
-{
+{{
   "sql": "SELECT语句",
   "joins": ["JOIN条件描述1", "JOIN条件描述2"],
   "explanation": "查询逻辑说明"
-}
+}}
 只返回JSON，不要其他内容。"""),
             HumanMessage(content=f"""相关表结构：
 {schema_str}
@@ -156,10 +180,16 @@ class NL2SQLService:
             "tables_used": selected_tables
         }
 
-    async def process_question(self, question: str, conversation_history: list = None) -> dict:
-        selected_tables = self.select_tables(question)
-        if not selected_tables:
-            selected_tables = ["T_JCXX"]
+    async def process_question(self, question: str, conversation_history: list = None,
+                               tables_dict: dict = None, db_vendor: str = None) -> dict:
+        if tables_dict is None:
+            tables_dict = TABLES
 
-        result = self.generate_sql(question, selected_tables, conversation_history)
+        selected_tables = self.select_tables(question, tables_dict)
+        if not selected_tables:
+            first_table = next(iter(tables_dict), None)
+            if first_table:
+                selected_tables = [first_table]
+
+        result = self.generate_sql(question, selected_tables, tables_dict, conversation_history, db_vendor)
         return result

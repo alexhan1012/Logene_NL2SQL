@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, List, Tooltip } from 'antd';
-import { PlusOutlined, DeleteOutlined, MessageOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, MessageOutlined, SettingOutlined, DatabaseOutlined } from '@ant-design/icons';
 import type { Session } from '../types';
 
 interface Props {
@@ -9,9 +9,11 @@ interface Props {
   onSelectSession: (id: string) => void;
   onNewChat: () => void;
   onDeleteSession: (id: string) => void;
+  onOpenSettings: () => void;
+  onOpenSchemaManager: () => void;
 }
 
-const Sidebar: React.FC<Props> = ({ sessions, currentSessionId, onSelectSession, onNewChat, onDeleteSession }) => {
+const Sidebar: React.FC<Props> = ({ sessions, currentSessionId, onSelectSession, onNewChat, onDeleteSession, onOpenSettings, onOpenSchemaManager }) => {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '16px' }}>
@@ -47,6 +49,16 @@ const Sidebar: React.FC<Props> = ({ sessions, currentSessionId, onSelectSession,
             </List.Item>
           )}
         />
+      </div>
+      <div style={{ padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+        <Button type="text" icon={<DatabaseOutlined />} block onClick={onOpenSchemaManager}
+          style={{ color: '#aaa', textAlign: 'left', marginBottom: '4px' }}>
+          表结构管理
+        </Button>
+        <Button type="text" icon={<SettingOutlined />} block onClick={onOpenSettings}
+          style={{ color: '#aaa', textAlign: 'left' }}>
+          系统设置
+        </Button>
       </div>
     </div>
   );
